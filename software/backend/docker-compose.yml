@@ -1,0 +1,58 @@
+version: '3'
+services:
+  board:
+    build:
+      context: ./board
+      dockerfile: Dockerfile
+    links:
+      - redis
+    depends_on:
+      - redis
+    environment:
+     - PYTHONUNBUFFERED=1
+    restart: always
+  outside:
+    build:
+      context: ./outside
+      dockerfile: Dockerfile
+    links:
+      - redis
+    depends_on:
+      - redis
+    environment:
+     - PYTHONUNBUFFERED=1
+    ports:
+      - 7654:7654
+    restart: always
+  game:
+    build:
+      context: ./game
+      dockerfile: Dockerfile
+    links:
+      - redis
+    depends_on:
+      - redis
+      - katago
+      - board
+      - outside
+    environment:
+     - PYTHONUNBUFFERED=1
+    restart: always
+  
+  katago:
+    build:
+      context: ./katago
+      dockerfile: Dockerfile
+    links:
+      - redis
+    depends_on:
+      - redis
+    environment:
+     - PYTHONUNBUFFERED=1
+    restart: always
+
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    restart: always
