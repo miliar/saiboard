@@ -4,6 +4,9 @@ from collections import deque
 import socket
 import redis
 from retry import retry
+import logging
+
+logging.basicConfig()
 
 
 class Board:
@@ -101,8 +104,17 @@ class Board:
         print(message)
         self.redis_conn.publish(self.queue_out, json.dumps(message))
 
-    @retry(socket.timeout, tries=3, delay=2)
+    @retry(ConnectionResetError, tries=6, delay=2, backoff=2)
     def _request_payload(self, payload):
+        try:
+            return self._send_request(payload)
+        except ConnectionResetError:
+            print("ConnectionResetError: Reconnecting...")
+            self.socket.connect((self.host, self.port))
+            raise
+
+    @retry(socket.timeout, tries=3, delay=2)
+    def _send_request(self, payload):
         self.socket.sendall(payload.encode())
         data = b""
         while not data.endswith(self.data_end_marker):
