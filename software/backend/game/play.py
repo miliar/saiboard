@@ -1,5 +1,6 @@
 import json
 import redis
+import numpy as np
 from game_record import GameRecord
 
 
@@ -103,7 +104,13 @@ class Play:
         if self.invalid_board:
             raise RuntimeError("Board does not match game record")
         if added_stones := (self.last_board_state - self.game.last_board_state):
-            self._add_move(added_stones)
+            try:
+                self._add_move(added_stones)
+            except RuntimeError:
+                if removed := (self.game.last_board_state - self.last_board_state):
+                    self._undo_stones(removed)
+                    self._add_move(added_stones)
+
         else:
             self._undo_stones(self.game.last_board_state - self.last_board_state)
         if self.last_board_state != self.game.last_board_state:
@@ -225,10 +232,22 @@ class Play:
                     {
                         "name": "led",
                         "leds": [
-                            [move[0], *self.colors[move[1][0]]]
+                            [
+                                move[0],
+                                *tuple(
+                                    [
+                                        int(n)
+                                        for n in np.array(
+                                            move[1][1]
+                                            * np.array(self.colors[move[1][0]]),
+                                            dtype=int,
+                                        )
+                                    ]
+                                ),
+                            ]
                             for move in moves.items()
                             if (
-                                (move[1][1] > 0.7)
+                                (move[1][1] > 0.2)
                                 and (move[1][0], move[0]) not in self.last_board_state
                             )
                         ],
